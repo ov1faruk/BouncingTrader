@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FundedNext Trading Game</title>
+    <style>
+        body { margin: 0; background-color: #1a1a1a; color: white; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #gameInfo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            display: none;
+            text-align: center;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameInfo">Score: <span id="score">0</span></div>
+    <div id="gameOver">
+        Game Over!<br>
+        Final Score: <span id="finalScore">0</span><br>
+        Press Space to Restart
+    </div>
+    <div id="instructions">
+        Controls: Space, Up Arrow, or W to jump<br>
+        Space to restart when game is over
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    // Set up the scene, camera, and renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Create the coin (player)
+    const coinGeometry = new THREE.CircleGeometry(0.2, 32);
+    const coinMaterial = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+    const coin = new THREE.Mesh(coinGeometry, coinMaterial);
+    scene.add(coin);
+
+    // Add $ sign to the coin
+    const loader = new THREE.FontLoader();
+    loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(font) {
+        const textGeometry = new THREE.TextGeometry('$', {
+            font: font,
+            size: 0.3,
+            height: 0.1,
+        });
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        textMesh.position.set(-0.1, -0.1, 0.1);
+        coin.add(textMesh);
+    });
+
+    // Create candlestick chart blocks
+    const blockGeometry = new THREE.BoxGeometry(0.5, 1, 0.1);
+    const greenMaterial = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
+    const redMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+
+    // Game variables
+    let blocks = [];
+    let score = 0;
+    let gameActive = true;
+    let velocity = 0;
+    const gravity = -9.8;
+    const jump = 5;
+
+    // Function to create blocks
+    function createBlock() {
+        const height = Math.random() * 2 + 1;
+        const block = new THREE.Mesh(blockGeometry, Math.random() > 0.5 ? greenMaterial : redMaterial);
+        block.position.set(10, Math.random() * 6 - 3, 0);
+        block.scale.y = height;
+        scene.add(block);
+        blocks.push(block);
+    }
+
+    // Function to move blocks
+    function moveBlocks() {
+        blocks.forEach((block, index) => {
+            block.position.x -= 0.05;
+            if (block.position.x < -10) {
+                scene.remove(block);
+                blocks.splice(index, 1);
+                score++;
+                document.getElementById('score').textContent = score;
+            }
+        });
+    }
+
+    // Function to check collisions
+    function checkCollisions() {
+        blocks.forEach(block => {
+            if (coin.position.x + 0.2 > block.position.x - 0.25 &&
+                coin.position.x - 0.2 < block.position.x + 0.25 &&
+                coin.position.y + 0.2 > block.position.y - block.scale.y / 2 &&
+                coin.position.y - 0.2 < block.position.y + block.scale.y / 2) {
+                gameOver();
+            }
+        });
+
+        // Game over when coin falls off the bottom of the screen
+        if (coin.position.y < -5) {
+            gameOver();
+        }
+
+        // Prevent the coin from going above the top of the screen
+        if (coin.position.y > 5) {
+            coin.position.y = 5;
+            velocity = 0;
+        }
+    }
+
+    function gameOver() {
+        gameActive = false;
+        document.getElementById('gameOver').style.display = 'block';
+        document.getElementById('finalScore').textContent = score;
+    }
+
+    // Set up camera position
+    camera.position.z = 5;
+
+    // Game loop
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        if (gameActive) {
+            // Apply gravity
+            velocity += gravity * 0.016; // Assuming 60 FPS
+            coin.position.y += velocity * 0.016;
+            
+            // Move blocks
+            moveBlocks();
+            
+            // Check collisions
+            checkCollisions();
+            
+            // Create new blocks
+            if (Math.random() < 0.02) {
+                createBlock();
+            }
+        }
+        
+        renderer.render(scene, camera);
+    }
+
+    // Handle user input
+    document.addEventListener('keydown', (event) => {
+        if (gameActive) {
+            switch(event.code) {
+                case 'Space':
+                case 'ArrowUp':
+                case 'KeyW':
+                    velocity = jump;
+                    break;
+            }
+        } else if (event.code === 'Space') {
+            location.reload(); // Reload the page to restart the game
+        }
+    });
+
+    // Start the game loop
+    animate();
+    </script>
+</body>
+</html>
